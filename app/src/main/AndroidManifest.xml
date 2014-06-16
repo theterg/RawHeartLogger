@@ -16,6 +16,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".DeviceScanActivity" />
         <service android:name=".BluetoothLeService" android:enabled="true"/>
     </application>
     <!-- Declare this required feature if you want to make the app available to BLE-capable

@@ -14,4 +14,28 @@
         android:id="@+id/textView"
         android:layout_alignParentTop="true"
         android:layout_alignParentStart="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pick BLE Device"
+        android:id="@+id/pick_device"
+        android:layout_below="@+id/textView"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Device Name"
+        android:id="@+id/DeviceName"
+        android:layout_below="@+id/pick_device"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Device Address"
+        android:id="@+id/DeviceAddress"
+        android:layout_below="@+id/DeviceName"
+        android:layout_alignParentStart="true" />
 </RelativeLayout>

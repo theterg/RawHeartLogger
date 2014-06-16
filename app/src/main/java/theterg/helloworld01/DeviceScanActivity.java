@@ -47,6 +47,11 @@ public class DeviceScanActivity extends ListActivity {
     private boolean mScanning;
     private Handler mHandler;
 
+    public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
+    public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
+
+    public static final int PICK_DEVICE_REQUEST_CODE = 1;
+
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
@@ -156,6 +161,11 @@ public class DeviceScanActivity extends ListActivity {
             mScanning = false;
         }
         startActivity(intent);*/
+        Intent data = new Intent();
+        data.putExtra(this.EXTRAS_DEVICE_NAME, device.getName());
+        data.putExtra(this.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+        setResult(RESULT_OK, data);
+        finish();
     }
 
     private void scanLeDevice(final boolean enable) {

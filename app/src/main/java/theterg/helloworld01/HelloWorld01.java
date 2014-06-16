@@ -7,6 +7,8 @@ import android.app.ActionBar;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
@@ -15,6 +17,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
 
 
 public class HelloWorld01 extends Activity implements ActionBar.TabListener {
@@ -187,7 +191,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         }
     }
 
-    public static class SettingsFragment extends Fragment {
+    public static class SettingsFragment extends Fragment implements View.OnClickListener {
         /**
          * The fragment argument representing the section number for this
          * fragment.
@@ -212,7 +216,26 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_settings, container, false);
+            Button PickDevice = (Button) rootView.findViewById(R.id.pick_device);
+            PickDevice.setOnClickListener(this);
             return rootView;
+        }
+
+        @Override
+        public void onClick(View view) {
+            final Intent intent = new Intent(getActivity(), DeviceScanActivity.class);
+            startActivityForResult(intent, DeviceScanActivity.PICK_DEVICE_REQUEST_CODE);
+        }
+
+        @Override
+        public void onActivityResult(int requestCode, int resultCode, Intent data) {
+            super.onActivityResult(requestCode, resultCode, data);
+            if (requestCode == DeviceScanActivity.PICK_DEVICE_REQUEST_CODE && resultCode == RESULT_OK){
+                final String name = data.getStringExtra(DeviceScanActivity.EXTRAS_DEVICE_NAME);
+                final String address = data.getStringExtra(DeviceScanActivity.EXTRAS_DEVICE_ADDRESS);
+                ((TextView) getActivity().findViewById(R.id.DeviceName)).setText(name);
+                ((TextView) getActivity().findViewById(R.id.DeviceAddress)).setText(address);
+            }
         }
     }
 
