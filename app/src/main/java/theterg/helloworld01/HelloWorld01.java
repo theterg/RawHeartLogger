@@ -1,17 +1,28 @@
 package theterg.helloworld01;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import android.app.Activity;
 import android.app.ActionBar;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -22,7 +33,7 @@ import android.widget.TextView;
 
 
 public class HelloWorld01 extends Activity implements ActionBar.TabListener {
-
+    private final static String TAG = HelloWorld01.class.getSimpleName();
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -32,11 +43,72 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
      * {@link android.support.v13.app.FragmentStatePagerAdapter}.
      */
     SectionsPagerAdapter mSectionsPagerAdapter;
+    private BluetoothLeService mBluetoothLeService;
+    private String mDeviceAddress = "";
+    private String mDeviceName = "";
+    private ActionBar actionBar;
 
     /**
      * The {@link ViewPager} that will host the section contents.
      */
     ViewPager mViewPager;
+
+    // Code to manage Service lifecycle.
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            mBluetoothLeService = null;
+        }
+    };
+
+    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+                ((TextView)findViewById(R.id.StatusText)).setText("Connected");
+                //mConnected = true;
+                //updateConnectionState(R.string.connected);
+                //invalidateOptionsMenu();
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                ((TextView)findViewById(R.id.StatusText)).setText("Disconnected");
+                ((TextView)findViewById(R.id.Address)).setText("");
+                ((TextView)findViewById(R.id.DeviceName)).setText("");
+                //mConnected = false;
+                //updateConnectionState(R.string.disconnected);
+                //invalidateOptionsMenu();
+                //clearUI();
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                ((TextView)findViewById(R.id.StatusText)).setText("Services Discovered");
+                // TODO - find the HR service and notify on it!
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                ((TextView)findViewById(R.id.StatusText)).setText("Got Data");
+                //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+            }
+        }
+    };
+
+    protected void connectToAddr(String name, String addr) {
+        // Automatically connects to the device upon successful start-up initialization.
+        mDeviceName = name;
+        mDeviceAddress = addr;
+        ((TextView)findViewById(R.id.Address)).setText(addr);
+        ((TextView)findViewById(R.id.DeviceName)).setText(name);
+        Log.i(TAG, "Attempting to connect to "+mDeviceAddress);
+        mBluetoothLeService.connect(mDeviceAddress);
+        actionBar.selectTab(actionBar.getTabAt(0));
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,7 +116,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         setContentView(R.layout.activity_hello_world01);
 
         // Set up the action bar.
-        final ActionBar actionBar = getActionBar();
+        actionBar = getActionBar();
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
 
         // Create the adapter that will return a fragment for each of the three
@@ -76,8 +148,43 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
                             .setText(mSectionsPagerAdapter.getPageTitle(i))
                             .setTabListener(this));
         }
+
+        // Bind to the service
+        final Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
     }
 
+    private static IntentFilter makeGattUpdateIntentFilter() {
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        return intentFilter;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+        if (mBluetoothLeService != null) {
+            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
+            Log.d(TAG, "Connect request result=" + result);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(mGattUpdateReceiver);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(mServiceConnection);
+        mBluetoothLeService = null;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -235,6 +342,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
                 final String address = data.getStringExtra(DeviceScanActivity.EXTRAS_DEVICE_ADDRESS);
                 ((TextView) getActivity().findViewById(R.id.DeviceName)).setText(name);
                 ((TextView) getActivity().findViewById(R.id.DeviceAddress)).setText(address);
+                ((HelloWorld01)getActivity()).connectToAddr(name, address);
             }
         }
     }
