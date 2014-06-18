@@ -32,6 +32,7 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,6 +63,10 @@ public class BluetoothLeService extends Service {
             "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
+    public final static String HR_DATA =
+            "com.example.bluetooth.le.HR_DATA";
+    public final static String RR_DATA =
+            "com.example.bluetooth.le.RR_DATA";
 
     public final static UUID UUID_HEART_RATE_MEASUREMENT =
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
@@ -130,16 +135,38 @@ public class BluetoothLeService extends Service {
             int flag = characteristic.getProperties();
             int format = -1;
 
+            byte[] bytes = characteristic.getValue();
+            /*StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02X ", b));
+            }
+            Log.d(TAG, "Raw HR data: "+sb.toString());*/
+
             if ((flag & 0x01) != 0) {
                 format = BluetoothGattCharacteristic.FORMAT_UINT16;
-                Log.d(TAG, "Heart rate format UINT16.");
+                //Log.d(TAG, "Heart rate format UINT16.");
             } else {
                 format = BluetoothGattCharacteristic.FORMAT_UINT8;
-                Log.d(TAG, "Heart rate format UINT8.");
+                //Log.d(TAG, "Heart rate format UINT8.");
             }
             final int heartRate = characteristic.getIntValue(format, 1);
             Log.d(TAG, String.format("Received heart rate: %d", heartRate));
-            intent.putExtra(EXTRA_DATA, heartRate);
+            intent.putExtra(HR_DATA, heartRate);
+
+            if ((flag & 0x10) != 0) {
+                // We also have RR values!
+                ArrayList<Integer> rrValues = new ArrayList<Integer>();
+                for (int i=2;i<bytes.length;i+=2){
+                    int rr = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, i);
+                    if ((rrValues.size() > 0)&&(rrValues.get(rrValues.size()-1) == rr)) {
+                        //Log.i(TAG, "Multiple RR values identical - ignoring identical values");
+                    } else {
+                        rrValues.add(rr);
+                    }
+                }
+                //Log.d(TAG, "Got RR intervals: "+rrValues.toString());
+                intent.putIntegerArrayListExtra(RR_DATA, rrValues);
+            }
         } else {
             // For all other profiles, writes the data formatted in HEX.
             final byte[] data = characteristic.getValue();

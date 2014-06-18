@@ -79,17 +79,11 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Connected");
-                //mConnected = true;
-                //updateConnectionState(R.string.connected);
-                //invalidateOptionsMenu();
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Disconnected");
                 ((TextView)findViewById(R.id.Address)).setText("");
                 ((TextView)findViewById(R.id.DeviceName)).setText("");
-                //mConnected = false;
-                //updateConnectionState(R.string.disconnected);
-                //invalidateOptionsMenu();
-                //clearUI();
+                // TODO - Attempt to reconnect
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Services Discovered");
                 BluetoothGattCharacteristic characteristic = findHRRCharacteristic(mBluetoothLeService.getSupportedGattServices());
@@ -101,9 +95,15 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
                 }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Got Data");
-                if (intent.hasExtra(BluetoothLeService.EXTRA_DATA)){
-                    int hr = (int)intent.getIntExtra(BluetoothLeService.EXTRA_DATA, -1);
-                    ((TextView)findViewById(R.id.LastReading)).setText(Integer.toString(hr));
+                if (intent.hasExtra(BluetoothLeService.HR_DATA)){
+                    int hr = (int)intent.getIntExtra(BluetoothLeService.HR_DATA, -1);
+                    ((TextView)findViewById(R.id.LastHR)).setText(Integer.toString(hr));
+                }
+                if (intent.hasExtra(BluetoothLeService.RR_DATA)){
+                    ArrayList<Integer> rrValues = intent.getIntegerArrayListExtra(BluetoothLeService.RR_DATA);
+                    if ((rrValues != null)&&(rrValues.size() > 0)) {
+                        ((TextView)findViewById(R.id.LastRR)).setText(Integer.toString(rrValues.get(rrValues.size()-1)));
+                    }
                 }
             }
         }

@@ -80,14 +80,32 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Last Reading:"
+                android:text="Last HR Value:"
                 android:id="@+id/textView2"
                 android:layout_column="0" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/LastReading" />
+                android:id="@+id/LastHR" />
+        </TableRow>
+
+        <TableRow
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:id="@+id/tableRow">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last RR Value:"
+                android:id="@+id/textView2"
+                android:layout_column="0" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/LastRR" />
         </TableRow>
 
     </TableLayout>
