@@ -15,7 +15,6 @@ import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -79,6 +78,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Connected");
+                ((TextView)findViewById(R.id.Address)).setText(mBluetoothLeService.getConnectedAddress());
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Disconnected");
                 ((TextView)findViewById(R.id.Address)).setText("");
@@ -132,6 +132,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         ((TextView)findViewById(R.id.Address)).setText(addr);
         ((TextView)findViewById(R.id.DeviceName)).setText(name);
         Log.i(TAG, "Attempting to connect to "+mDeviceAddress);
+        mBluetoothLeService.storeAddress(addr);
         mBluetoothLeService.connect(mDeviceAddress);
         actionBar.selectTab(actionBar.getTabAt(0));
 

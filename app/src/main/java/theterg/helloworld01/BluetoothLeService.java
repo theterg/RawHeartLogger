@@ -28,6 +28,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
@@ -49,6 +50,8 @@ public class BluetoothLeService extends Service {
     private BluetoothGatt mBluetoothGatt;
     private int mConnectionState = STATE_DISCONNECTED;
 
+    private SharedPreferences prefs;
+
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
@@ -67,6 +70,9 @@ public class BluetoothLeService extends Service {
             "com.example.bluetooth.le.HR_DATA";
     public final static String RR_DATA =
             "com.example.bluetooth.le.RR_DATA";
+
+    public final static String PREF_NAME =
+            "com.example.bluetooth.le.PREFS";
 
     public final static UUID UUID_HEART_RATE_MEASUREMENT =
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
@@ -90,6 +96,7 @@ public class BluetoothLeService extends Service {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
+                mBluetoothDeviceAddress = null;
                 broadcastUpdate(intentAction);
             }
         }
@@ -224,7 +231,25 @@ public class BluetoothLeService extends Service {
             return false;
         }
 
+        prefs = getSharedPreferences(PREF_NAME, 0);
+        String mac = prefs.getString("MAC", null);
+        if (mac != null) {
+            Log.d(TAG, "Found saved addr "+mac);
+            connect(mac);
+        }
+        Log.i(TAG, "No saved mac found, not auto-connecting");
+
         return true;
+    }
+
+    public void storeAddress(final String address) {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("MAC", address);
+        editor.commit();
+    }
+
+    public String getConnectedAddress() {
+        return mBluetoothDeviceAddress;
     }
 
     /**
@@ -280,6 +305,7 @@ public class BluetoothLeService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
+        mBluetoothDeviceAddress = null;
         mBluetoothGatt.disconnect();
     }
 
