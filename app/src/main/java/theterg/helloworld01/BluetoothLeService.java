@@ -51,9 +51,12 @@ public class BluetoothLeService extends Service {
     private BluetoothGatt mBluetoothGatt;
     private Thread reconnectionThread;
     private Handler mHandler;
+    private double last_rr_value = 0.0;
+    private double last_bpm_value = 0.0;
     private boolean mScanning;
     private int mConnectionState = STATE_DISCONNECTED;
 
+    private UploadManager mUploadManager;
     private SharedPreferences prefs;
 
     private static final int STATE_DISCONNECTED = 0;
@@ -244,6 +247,7 @@ public class BluetoothLeService extends Service {
             final int heartRate = characteristic.getIntValue(format, 1);
             Log.d(TAG, String.format("Received heart rate: %d", heartRate));
             intent.putExtra(HR_DATA, heartRate);
+            last_bpm_value = heartRate;
 
             if ((flag & 0x10) != 0) {
                 // We also have RR values!
@@ -254,6 +258,7 @@ public class BluetoothLeService extends Service {
                         //Log.i(TAG, "Multiple RR values identical - ignoring identical values");
                     } else {
                         rrValues.add(rr);
+                        last_rr_value = rr;
                     }
                 }
                 //Log.d(TAG, "Got RR intervals: "+rrValues.toString());
@@ -269,6 +274,8 @@ public class BluetoothLeService extends Service {
                 intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
             }
         }
+        //TODO - how do we deal with multiple RR values?
+        mUploadManager.addHistorySample((float)last_bpm_value, (float)last_rr_value);
         sendBroadcast(intent);
     }
 
@@ -300,6 +307,7 @@ public class BluetoothLeService extends Service {
      * @return Return true if the initialization is successful.
      */
     public boolean initialize() {
+        mUploadManager = new UploadManager(this);
         mHandler = new Handler();
         // Add HR service to mask by default
         serviceMask = new ArrayList<UUID>();
