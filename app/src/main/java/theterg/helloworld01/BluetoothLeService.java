@@ -30,6 +30,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -48,6 +49,9 @@ public class BluetoothLeService extends Service {
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
+    private Thread reconnectionThread;
+    private Handler mHandler;
+    private boolean mScanning;
     private int mConnectionState = STATE_DISCONNECTED;
 
     private SharedPreferences prefs;
@@ -77,6 +81,52 @@ public class BluetoothLeService extends Service {
     public final static UUID UUID_HEART_RATE_MEASUREMENT =
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
 
+
+    private void reconnectionLoop() {
+        Log.d(TAG, "reconnection thread: START");
+        while (mConnectionState != STATE_CONNECTED) {
+            if (mConnectionState == STATE_DISCONNECTED) {
+                if (!mScanning) {
+                    Log.d(TAG, "reconnection thread: RESCAN");
+                    ScanForSavedMAC();
+                }
+            }
+            try {
+                Thread.sleep(15000);
+                Log.d(TAG, "reconnection thread: POLL");
+            } catch (InterruptedException e) {
+                Log.d(TAG, "reconnection thread: STOP");
+                return;
+            }
+        }
+    }
+
+    // Device scan callback.
+    private BluetoothAdapter.LeScanCallback mLeScanCallback =
+            new BluetoothAdapter.LeScanCallback() {
+
+        @Override
+        public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
+            if (device.getAddress().equals(mBluetoothDeviceAddress)){
+                mScanning = false;
+                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                connect(mBluetoothDeviceAddress);
+            }
+        }
+    };
+
+    private void ScanForSavedMAC() {
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mScanning = false;
+                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+            }
+        }, 10000);
+        mScanning = true;
+        mBluetoothAdapter.startLeScan(mLeScanCallback);
+    }
+
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
@@ -84,6 +134,9 @@ public class BluetoothLeService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             String intentAction;
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                if ((reconnectionThread != null) && (reconnectionThread.isAlive())) {
+                    reconnectionThread.interrupt();
+                }
                 intentAction = ACTION_GATT_CONNECTED;
                 mConnectionState = STATE_CONNECTED;
                 broadcastUpdate(intentAction);
@@ -96,7 +149,14 @@ public class BluetoothLeService extends Service {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 mConnectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
-                mBluetoothDeviceAddress = null;
+                close();
+                reconnectionThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        reconnectionLoop();
+                    }
+                });
+                reconnectionThread.start();
                 broadcastUpdate(intentAction);
             }
         }
@@ -215,6 +275,7 @@ public class BluetoothLeService extends Service {
      * @return Return true if the initialization is successful.
      */
     public boolean initialize() {
+        mHandler = new Handler();
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
         if (mBluetoothManager == null) {
@@ -234,10 +295,17 @@ public class BluetoothLeService extends Service {
         prefs = getSharedPreferences(PREF_NAME, 0);
         String mac = prefs.getString("MAC", null);
         if (mac != null) {
-            Log.d(TAG, "Found saved addr "+mac);
-            connect(mac);
+            Log.d(TAG, "Found saved addr "+mac+", scanning");
+            //connect(mac);
+            mBluetoothDeviceAddress = mac;
+            reconnectionThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    reconnectionLoop();
+                }
+            });
+            reconnectionThread.start();
         }
-        Log.i(TAG, "No saved mac found, not auto-connecting");
 
         return true;
     }
@@ -305,7 +373,6 @@ public class BluetoothLeService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
-        mBluetoothDeviceAddress = null;
         mBluetoothGatt.disconnect();
     }
 
