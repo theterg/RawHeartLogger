@@ -47,7 +47,6 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
     private String mDeviceAddress = "";
     private String mDeviceName = "";
     private ActionBar actionBar;
-    private List<UUID> serviceMask;
 
     /**
      * The {@link ViewPager} that will host the section contents.
@@ -83,16 +82,8 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
                 ((TextView)findViewById(R.id.StatusText)).setText("Disconnected");
                 ((TextView)findViewById(R.id.Address)).setText("");
                 ((TextView)findViewById(R.id.DeviceName)).setText("");
-                // TODO - Attempt to reconnect
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Services Discovered");
-                BluetoothGattCharacteristic characteristic = findHRRCharacteristic(mBluetoothLeService.getSupportedGattServices());
-                if (characteristic != null) {
-                    Log.i(TAG, "Found the HEART_RATE_MEASUREMENT characteristic, notifying on it");
-                    mBluetoothLeService.setCharacteristicNotification(characteristic, true);
-                } else {
-                    Log.w(TAG, "Did not find the HEART_RATE_MEASUREMENT characteristic");
-                }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Got Data");
                 if (intent.hasExtra(BluetoothLeService.HR_DATA)){
@@ -108,22 +99,6 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
             }
         }
     };
-
-    private BluetoothGattCharacteristic findHRRCharacteristic(List<BluetoothGattService> services) {
-        for (BluetoothGattService service : services) {
-            for (UUID uuid : serviceMask){
-                if (service.getUuid().equals(uuid)) {
-                    List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-                    for (BluetoothGattCharacteristic characteristic : characteristics) {
-                        if (characteristic.getUuid().equals(UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT))){
-                            return characteristic;
-                        }
-                    }
-                }
-            }
-        }
-        return null;
-    }
 
     protected void connectToAddr(String name, String addr) {
         // Automatically connects to the device upon successful start-up initialization.
@@ -142,10 +117,6 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_hello_world01);
-
-        // Add HR service to mask by default
-        serviceMask = new ArrayList<UUID>();
-        serviceMask.add(UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb"));
 
         // Set up the action bar.
         actionBar = getActionBar();
@@ -199,10 +170,6 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
     protected void onResume() {
         super.onResume();
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-        if (mBluetoothLeService != null) {
-            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-            Log.d(TAG, "Connect request result=" + result);
-        }
     }
 
     @Override

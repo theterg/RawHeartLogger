@@ -81,6 +81,8 @@ public class BluetoothLeService extends Service {
     public final static UUID UUID_HEART_RATE_MEASUREMENT =
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
 
+    private List<UUID> serviceMask;
+
 
     private void reconnectionLoop() {
         Log.d(TAG, "reconnection thread: START");
@@ -164,6 +166,13 @@ public class BluetoothLeService extends Service {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                BluetoothGattCharacteristic characteristic = findHRRCharacteristic(getSupportedGattServices());
+                if (characteristic != null) {
+                    Log.i(TAG, "Found the HEART_RATE_MEASUREMENT characteristic, notifying on it");
+                    setCharacteristicNotification(characteristic, true);
+                } else {
+                    Log.w(TAG, "Did not find the HEART_RATE_MEASUREMENT characteristic");
+                }
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
             } else {
                 Log.w(TAG, "onServicesDiscovered received: " + status);
@@ -185,6 +194,22 @@ public class BluetoothLeService extends Service {
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
         }
     };
+
+    private BluetoothGattCharacteristic findHRRCharacteristic(List<BluetoothGattService> services) {
+        for (BluetoothGattService service : services) {
+            for (UUID uuid : serviceMask){
+                if (service.getUuid().equals(uuid)) {
+                    List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                    for (BluetoothGattCharacteristic characteristic : characteristics) {
+                        if (characteristic.getUuid().equals(UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT))){
+                            return characteristic;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
@@ -276,6 +301,9 @@ public class BluetoothLeService extends Service {
      */
     public boolean initialize() {
         mHandler = new Handler();
+        // Add HR service to mask by default
+        serviceMask = new ArrayList<UUID>();
+        serviceMask.add(UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb"));
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
         if (mBluetoothManager == null) {
