@@ -18,10 +18,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -47,6 +50,9 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
     private String mDeviceAddress = "";
     private String mDeviceName = "";
     private ActionBar actionBar;
+    protected SharedPreferences prefs;
+
+    private final String PREF_NAME = "com.terg.HelloWorld01.PREFS";
 
     /**
      * The {@link ViewPager} that will host the section contents.
@@ -62,6 +68,18 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
             if (!mBluetoothLeService.initialize()) {
                 Log.e(TAG, "Unable to initialize Bluetooth");
                 finish();
+            }
+            TextView UsernameView = (TextView) findViewById(R.id.username);
+            TextView PasswordView = (TextView) findViewById(R.id.password);
+            final String username = prefs.getString("USER", null);
+            final String password = prefs.getString("PASS", null);
+            if (username != null) {
+                UsernameView.setText(username);
+                mBluetoothLeService.getUploadManager().setUsername(username);
+            }
+            if (password != null) {
+                PasswordView.setText(password);
+                mBluetoothLeService.getUploadManager().setPassword(password);
             }
         }
 
@@ -117,6 +135,8 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_hello_world01);
+
+        prefs = getSharedPreferences(PREF_NAME, 0);
 
         // Set up the action bar.
         actionBar = getActionBar();
@@ -303,6 +323,9 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
          * fragment.
          */
 
+        private SharedPreferences prefs;
+        private HelloWorld01 app;
+
         /**
          * Returns a new instance of this fragment for the given section
          * number.
@@ -321,9 +344,55 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
+            app = (HelloWorld01)getActivity();
             View rootView = inflater.inflate(R.layout.fragment_settings, container, false);
             Button PickDevice = (Button) rootView.findViewById(R.id.pick_device);
             PickDevice.setOnClickListener(this);
+            TextView UsernameView = (TextView) rootView.findViewById(R.id.username);
+            TextView PasswordView = (TextView) rootView.findViewById(R.id.password);
+            final String username = app.prefs.getString("USER", null);
+            final String password = app.prefs.getString("PASS", null);
+            UsernameView.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+
+                }
+
+                @Override
+                public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                    if (!charSequence.toString().equals(username)) {
+                        SharedPreferences.Editor editor = app.prefs.edit();
+                        editor.putString("USER", charSequence.toString());
+                        editor.commit();
+                        app.mBluetoothLeService.getUploadManager().setUsername(charSequence.toString());
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable editable) {
+                }
+            });
+            PasswordView.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+
+                }
+
+                @Override
+                public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                    if (!charSequence.toString().equals(password)) {
+                        SharedPreferences.Editor editor = ((HelloWorld01)getActivity()).prefs.edit();
+                        editor.putString("PASS", charSequence.toString());
+                        editor.commit();
+                        app.mBluetoothLeService.getUploadManager().setPassword(charSequence.toString());
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable editable) {
+
+                }
+            });
             return rootView;
         }
 

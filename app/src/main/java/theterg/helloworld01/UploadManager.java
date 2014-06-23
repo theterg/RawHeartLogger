@@ -35,6 +35,8 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
     private String username = "";
     private String password = "";
 
+    private static final int UPLOAD_POLL_RATE_MILLIS = 60000;
+
     private static final String BASE_URL = "http://flxtest.bodytrack.org";
 
     private static final String DB_NAME = "com.theterg.helloworld01.HISTORY_DB";
@@ -69,8 +71,11 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
 
     }
 
-    public void setUsernamePassword(String user, String pass) {
+    public void setUsername(String user) {
         username = user;
+    }
+
+    public void setPassword(String pass) {
         password = pass;
     }
 
@@ -166,12 +171,12 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
             return 0;
         }
 
-        Log.d(TAG, historyJSON.toString());
         return historyJSON.length();
     }
 
     @Override
     public void run() {
+        long lastUpdate = System.currentTimeMillis();
         running = true;
         try {
             while(running) {
@@ -179,9 +184,10 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
                     managerThread.wait(10000);
                 }
                 int count = getHistorySize();
-                if (count > 20) {
+                if ((count > 0)&&(System.currentTimeMillis() > lastUpdate + UPLOAD_POLL_RATE_MILLIS)) {
                     int len = uploadData();
                     if (len > 0) {
+                        lastUpdate = System.currentTimeMillis();
                         Log.i(TAG, "Killing history");
                         synchronized (db) {
                             db.delete(DB_HISTORY_NAME, null, null);
