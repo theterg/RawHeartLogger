@@ -346,6 +346,10 @@ public class BluetoothLeService extends Service {
         return true;
     }
 
+    public UploadManager getUploadManager() {
+        return mUploadManager;
+    }
+
     public void storeAddress(final String address) {
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("MAC", address);

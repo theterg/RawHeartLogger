@@ -5,13 +5,22 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Base64;
 import android.util.Log;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
  * Created by tergia on 6/22/14.
@@ -22,6 +31,11 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
     private boolean running;
     private Thread managerThread;
     private SQLiteDatabase db;
+
+    private String username = "";
+    private String password = "";
+
+    private static final String BASE_URL = "http://flxtest.bodytrack.org";
 
     private static final String DB_NAME = "com.theterg.helloworld01.HISTORY_DB";
     private static final int DATABASE_VERSION = 1;
@@ -55,6 +69,11 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
 
     }
 
+    public void setUsernamePassword(String user, String pass) {
+        username = user;
+        password = pass;
+    }
+
     public void addHistorySample(float hr, float rr) {
         int count = getHistorySize();
         ContentValues values = new ContentValues();
@@ -79,6 +98,7 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
             Cursor curr = db.rawQuery("SELECT COUNT(*) from "+DB_HISTORY_NAME, null);
             curr.moveToFirst();
             count = curr.getInt(0);
+            curr.close();
         }
         return count;
     }
@@ -95,14 +115,59 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
                 try {
                     row.put(curr.getLong(1)/1000.0);
                     row.put(curr.getFloat(2));
-                    row.put(curr.getFloat(3));
+                    row.put(curr.getFloat(3)/1000.0);
                     values.put(row);
                 } catch (JSONException e) {
                     continue;
                 }
             } while(curr.moveToNext());
+            curr.close();
         }
         return values;
+    }
+
+    public int uploadData() {
+        JSONArray historyJSON = getAllHistory();
+        JSONObject body = new JSONObject();
+        JSONArray channels = new JSONArray();
+
+        try {
+            channels.put("HeartRate");
+            channels.put("BeatSpacing");
+            body.put("channel_names", channels);
+            body.put("data", historyJSON);
+        } catch (JSONException e) {
+            Log.e(TAG, "Couldn't create JSON for POST: ", e);
+            return 0;
+        }
+
+        HttpClient client = new DefaultHttpClient();
+        HttpPost post = new HttpPost(String.format("%s/api/bodytrack/jupload?dev_nickname=%s", BASE_URL, "PolarStrap"));
+        try {
+            post.setEntity(new StringEntity(body.toString()));
+        } catch (UnsupportedEncodingException e) {
+            Log.e(TAG, "Couldn't add JSON to POST: ", e);
+            return 0;
+        }
+
+        String credentials = username + ":" + password;
+        String encoding = Base64.encodeToString(credentials.getBytes(), Base64.NO_WRAP);
+        post.setHeader("Authorization", "Basic "+encoding);
+        post.setHeader("Accept", "*/*");
+        post.setHeader("Content-type", "application/x-www-form-urlencoded");
+        post.setHeader("User-Agent", "curl/7.35.0");
+
+        HttpResponse resp = null;
+        try {
+            resp = client.execute(post);
+            Log.i(TAG, "Response: "+EntityUtils.toString(resp.getEntity()));
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to POST data: ", e);
+            return 0;
+        }
+
+        Log.d(TAG, historyJSON.toString());
+        return historyJSON.length();
     }
 
     @Override
@@ -114,13 +179,14 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
                     managerThread.wait(10000);
                 }
                 int count = getHistorySize();
-                if (count > 10) {
-                    Log.i(TAG, "Killing history");
-                    JSONArray historyJSON = getAllHistory();
-                    synchronized (db) {
-                        db.delete(DB_HISTORY_NAME, null, null);
+                if (count > 20) {
+                    int len = uploadData();
+                    if (len > 0) {
+                        Log.i(TAG, "Killing history");
+                        synchronized (db) {
+                            db.delete(DB_HISTORY_NAME, null, null);
+                        }
                     }
-                    Log.d(TAG, historyJSON.toString());
                 }
             }
         } catch (InterruptedException e) {
