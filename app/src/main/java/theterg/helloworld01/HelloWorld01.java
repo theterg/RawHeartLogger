@@ -26,6 +26,7 @@ import android.support.v4.view.ViewPager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -93,6 +94,10 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
+            Fragment frag = mSectionsPagerAdapter.getRegisteredFragment(mViewPager.getCurrentItem());
+            if (!frag.getClass().equals(StatusFragment.class)) {
+                return;
+            }
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Connected");
                 ((TextView)findViewById(R.id.Address)).setText(mBluetoothLeService.getConnectedAddress());
@@ -244,6 +249,7 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
      * one of the sections/tabs/pages.
      */
     public class SectionsPagerAdapter extends FragmentPagerAdapter {
+        SparseArray<Fragment> registeredFragments = new SparseArray<Fragment>();
 
         public SectionsPagerAdapter(FragmentManager fm) {
             super(fm);
@@ -282,6 +288,23 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
                     return getString(R.string.title_section3).toUpperCase(l);
             }
             return null;
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            Fragment fragment = (Fragment) super.instantiateItem(container, position);
+            registeredFragments.put(position, fragment);
+            return fragment;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            registeredFragments.remove(position);
+            super.destroyItem(container, position, object);
+        }
+
+        public Fragment getRegisteredFragment(int position) {
+            return registeredFragments.get(position);
         }
     }
 
