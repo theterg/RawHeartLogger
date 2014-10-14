@@ -1,6 +1,7 @@
 package theterg.helloworld01;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import java.text.SimpleDateFormat;
 
 
 public class HelloWorld01 extends Activity implements ActionBar.TabListener {
@@ -98,7 +100,13 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
             if (!frag.getClass().equals(StatusFragment.class)) {
                 return;
             }
-            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+            Date now = new Date();
+            if (UploadManager.ACTION_UPLOAD_SUCCESSFUL.equals(action)) {
+                ((TextView)findViewById(R.id.LastUpload)).setText(sdf.format(now));
+            } else if (UploadManager.ACTION_UPLOAD_FAILURE.equals(action)) {
+                ((TextView)findViewById(R.id.LastUpload)).setText("Error");
+            } else if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 ((TextView)findViewById(R.id.StatusText)).setText("Connected");
                 ((TextView)findViewById(R.id.Address)).setText(mBluetoothLeService.getConnectedAddress());
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
@@ -188,6 +196,8 @@ public class HelloWorld01 extends Activity implements ActionBar.TabListener {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        intentFilter.addAction(UploadManager.ACTION_UPLOAD_SUCCESSFUL);
+        intentFilter.addAction(UploadManager.ACTION_UPLOAD_FAILURE);
         return intentFilter;
     }
 

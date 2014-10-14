@@ -26,7 +26,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/StatusText"
-                android:text="None" />
+                android:text="None"
+                android:layout_column="2" />
         </TableRow>
 
         <TableRow
@@ -48,7 +49,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/DeviceName" />
+                android:id="@+id/DeviceName"
+                android:layout_column="2" />
         </TableRow>
 
         <TableRow
@@ -65,7 +67,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/Address" />
+                android:id="@+id/Address"
+                android:layout_column="2" />
         </TableRow>
 
         <TableRow
@@ -87,7 +90,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/LastHR" />
+                android:id="@+id/LastHR"
+                android:layout_column="2" />
         </TableRow>
 
         <TableRow
@@ -105,7 +109,34 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/LastRR" />
+                android:id="@+id/LastRR"
+                android:layout_column="2" />
+        </TableRow>
+
+        <TableRow
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:paddingTop="20dp">
+
+        </TableRow>
+
+        <TableRow
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last Upload:"
+                android:id="@+id/textView3"
+                android:layout_column="0" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="None"
+                android:id="@+id/LastUpload"
+                android:layout_column="2" />
         </TableRow>
 
     </TableLayout>

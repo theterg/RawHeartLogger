@@ -2,6 +2,7 @@ package theterg.helloworld01;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -31,9 +32,15 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
     private boolean running;
     private Thread managerThread;
     private SQLiteDatabase db;
+    private Context service;
 
     private String username = "";
     private String password = "";
+
+    public final static String ACTION_UPLOAD_SUCCESSFUL =
+            "com.theterg.helloworld01.ACTION_UPLOAD_SUCCESSFUL";
+    public final static String ACTION_UPLOAD_FAILURE =
+            "com.theterg.helloworld01.ACTION_UPLOAD_FAILURE";
 
     private static final int UPLOAD_POLL_RATE_MILLIS = 60000;
 
@@ -56,9 +63,15 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
 
     UploadManager(Context context) {
         super(context, DB_NAME, null, DATABASE_VERSION);
+        service = context;
         db = getWritableDatabase();
         managerThread = new Thread(this);
         managerThread.start();
+    }
+
+    protected void updateUploadStatus(String action) {
+        final Intent intent = new Intent(action);
+        service.sendBroadcast(intent);
     }
 
     @Override
@@ -131,7 +144,7 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
         return values;
     }
 
-    public int uploadData() {
+    public boolean uploadData() {
         JSONArray historyJSON = getAllHistory();
         JSONObject body = new JSONObject();
         JSONArray channels = new JSONArray();
@@ -143,7 +156,7 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
             body.put("data", historyJSON);
         } catch (JSONException e) {
             Log.e(TAG, "Couldn't create JSON for POST: ", e);
-            return 0;
+            return false;
         }
 
         HttpClient client = new DefaultHttpClient();
@@ -152,26 +165,42 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
             post.setEntity(new StringEntity(body.toString()));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Couldn't add JSON to POST: ", e);
-            return 0;
+            return false;
         }
 
         String credentials = username + ":" + password;
         String encoding = Base64.encodeToString(credentials.getBytes(), Base64.NO_WRAP);
         post.setHeader("Authorization", "Basic "+encoding);
         post.setHeader("Accept", "*/*");
-        post.setHeader("Content-type", "application/x-www-form-urlencoded");
+        post.setHeader("Content-type", "application/json");
         post.setHeader("User-Agent", "curl/7.35.0");
 
-        HttpResponse resp = null;
+        HttpResponse resp;
+        String result_text;
         try {
             resp = client.execute(post);
-            Log.i(TAG, "Response: "+EntityUtils.toString(resp.getEntity()));
+            result_text = EntityUtils.toString(resp.getEntity());
         } catch (IOException e) {
             Log.e(TAG, "Unable to POST data: ", e);
-            return 0;
+            return false;
         }
 
-        return historyJSON.length();
+        try {
+            JSONObject result = new JSONObject(result_text);
+            if (!result.has("result")) {
+                Log.e(TAG, "Unrecognized POST response: "+result.toString());
+                return false;
+            }
+            if (!result.getString("result").equals("OK")) {
+                Log.e(TAG, "POST Failed: "+result.toString());
+                return false;
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Unable to decode POST response: ", e);
+            return false;
+        }
+
+        return true;
     }
 
     @Override
@@ -185,13 +214,15 @@ public class UploadManager extends SQLiteOpenHelper implements Runnable {
                 }
                 int count = getHistorySize();
                 if ((count > 0)&&(System.currentTimeMillis() > lastUpdate + UPLOAD_POLL_RATE_MILLIS)) {
-                    int len = uploadData();
-                    if (len > 0) {
-                        lastUpdate = System.currentTimeMillis();
+                    lastUpdate = System.currentTimeMillis();
+                    if (uploadData()) {
                         Log.i(TAG, "Killing history");
                         synchronized (db) {
                             db.delete(DB_HISTORY_NAME, null, null);
                         }
+                        updateUploadStatus(ACTION_UPLOAD_SUCCESSFUL);
+                    } else {
+                        updateUploadStatus(ACTION_UPLOAD_FAILURE);
                     }
                 }
             }
